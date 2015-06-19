@@ -1,11 +1,13 @@
 <!doctype html>
 <html>
+  <!-- Shoutout to Eric Xin for all the rad suggestions -->
   <head>
     <title>Mafia! Boom Headshot</title>
     <link href="/stylesheets/style.css" rel="stylesheet" type="text/css">
-    <link rel="icon" type="image/png" href="favicon-16x16.png" sizes="16x16" />
+    <link rel="icon" type="image/png" href="/stylesheets/favicon-16x16.png" sizes="16x16" />
   </head>
   <body>
+    <input type = "image" id = "welcome" src = "/stylesheets/lolgo.png" onClick = "fadeAway()" />
     <p id='role'> 8675309 - Your number. Game isn't locked yet </p>
     <div class = 'divMsg' id = 'msgDiv'>
       <p> Welcome to Mafia... </p>
@@ -36,6 +38,11 @@
         updateStat = 1;
       }
     }
+    $('#welcome').click(function(){
+      $('#welcome').animate({height: 0, opacity: 0}, function() {
+        $(this).remove();
+      });
+    });
 
     $('form').submit(function(){
       msg = $('#m').val();
@@ -54,7 +61,7 @@
         newMsg = msg.slice(1).toLocaleLowerCase();
         arrayMsg = newMsg.split(' ');
         if (arrayMsg[0] == "help"){
-          $('.divMsg').append($('<p>').text("Here are the commands you can use: /help | /help+ | /setnickname nickname | /nickname | /players | /whoisgod | /pm theirNickname yourMessage | /accuse theirNickname | /vote theirNickname | /accusedlist"));
+          $('.divMsg').append($('<p>').text("Here are the commands you can use: /help | /help+ | /setnickname nickname | /nickname | /players | /whoisgod | /pm theirNickname yourMessage | /clear | /accuse theirNickname | /vote theirNickname | /accusedlist"));
           if (playRole == 'god'){
             $('.divMsg').append($('<p>').text("As god, you can also use: /lock | /mafiafriends | /policefriends | /doctor | /voting."));
           } else if (playRole == 'mafia'){
@@ -66,7 +73,7 @@
           }
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
         } else if (arrayMsg[0] == "help+"){
-          $('.divMsg').append($('<p>').text("Set nickname - /setnickname desiredNickname | Display current nickname - /nickname | Display nicknames of all players - /players | Nickname of god - /whoisgod | Private message - /pm theirNickname yourMessage | Accuse someone during debate mode - /accuse theirNickname | Vote to kick people off the island - /vote theirNickname | View the list of accused people - /accusedlist"));
+          $('.divMsg').append($('<p>').text("Set nickname - /setnickname desiredNickname | Display current nickname - /nickname | Display nicknames of all players - /players | Nickname of god - /whoisgod | Private message - /pm theirNickname yourMessage | Clear the chat screen - /clear | Accuse someone during debate mode - /accuse theirNickname | Vote to kick people off the island - /vote theirNickname | View the list of accused people - /accusedlist"));
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
           if (playRole == 'god'){
             $('.divMsg').append($('<p>').text("Locks players and starts game - /lock | List of mafia members - /mafiafriends | List of police members - /policefriends | Who is the doctor? - /doctor | Allow voting to BURN THE _ITCH (w or b your choice) - /voting."));
@@ -80,9 +87,14 @@
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
         } else if (arrayMsg[0] == "setnickname"){
           if (arrayMsg.length == 2){
-            socket.emit('set nickname', arrayMsg[1]);
-            $('.divMsg').append($('<p>').text("Okay. It's been set. Check your nickname with /nickname"));
-            $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+            if (arrayMsg[1].length <= 12){
+              socket.emit('set nickname', arrayMsg[1]);
+              $('.divMsg').append($('<p>').text("Okay. It's been set. Check your nickname with /nickname"));
+              $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+            } else {
+              $('.divMsg').append($('<p>').text("Toooooo long. Try something shorter"));
+              $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+            }
           } else {
             $('.divMsg').append($('<p>').text("Format is: /setnickname desiredNickname. Don't add other crap"));
             $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
@@ -94,7 +106,9 @@
             $('.divMsg').append($('<p>').text("No nickname set. Set one with /setnickname"));
           }
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
-        }  else if (arrayMsg[0] == "players"){
+        } else if (arrayMsg[0] == "clear"){
+          $('.divMsg').empty();
+        } else if (arrayMsg[0] == "players"){
           socket.emit('player nicks');
         } else if (arrayMsg[0] == "whoisgod"){
           socket.emit('who god');
@@ -256,6 +270,14 @@
           window.open('https://www.youtube.com/watch?v=xXohtE2SRPg', '_blank');
           $('.divMsg').append($('<p class=joke>').text("THE VAYNE MECHANICS"));
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+        } else if (arrayMsg[0] == "ragemafia"){
+          window.open('https://www.youtube.com/watch?v=ovsVU6mktOw', '_blank');
+          $('.divMsg').append($('<p class=joke>').text("It'll be okay"));
+          $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+        } else if (arrayMsg[0] == "boom"){
+          window.open('https://www.youtube.com/watch?v=BG-qsBC60Pg', '_blank');
+          $('.divMsg').append($('<p class=joke>').text("HEADSHOT"));
+          $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
         } else {
           $('.divMsg').append($('<p>').text("Command " + msg + " is not valid. Type /help if you want to see all the commands and /help+ if you want commands and explanations"));
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
@@ -270,11 +292,12 @@
           $('#m').val('');
         } else if (!locked) {
           socket.emit('prelock message', msg);
+          $('#m').val('');
         } else {
         }
       }
+      $('#m').val('');
       return false;
-      $('#m').children('input').val('');
     });
 
     //Socket shenanigans. Displays a message, adds a player when a player enters, and deletes a player when a player leaves
@@ -337,6 +360,11 @@
     socket.on('toggle vote', function(toggledVote){
       voting = toggledVote;
     });
+
+    function fadeAway(){
+      welcome.style.opacity = 0;
+      welcome.style.display = "none";
+    }
 
     </script>
   </body>

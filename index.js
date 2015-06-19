@@ -34,12 +34,12 @@ io.on('connection', function(socket){
     playerNum++;
     nicknames.push("player"  + playerNum);
     socketIds.push(socket.id);
+    if (playerNum == 0){
+      io.sockets.connected[socketIds[0]].emit('player enter', 'god');
+    }
     io.emit('disp message', "A player joined the room");
   } else{
 
-  }
-  if (playerNum == 0){
-    io.sockets.connected[socketIds[0]].emit('player enter', 'god');
   }
 
   socket.on('pleb message', function(msg){
@@ -126,6 +126,7 @@ io.on('connection', function(socket){
       if (arguments.length == 1){
         if(checkName(nick)){
           var socketIndex = socketIds.indexOf(socket.id);
+          io.emit('disp message', nicknames[socketIndex] + " now goes by: " + nick);
           nicknames[socketIndex] = nick;
           console.log(socket.id + "set their nickname to: " + nick);
           io.sockets.connected[socket.id].emit('send nickname', nick);
@@ -169,7 +170,7 @@ io.on('connection', function(socket){
 
   socket.on('game lock', function(){
     if(checkRole(socket.id, 'god')){
-      if(playerNum > 6 && playersLocked == 0){
+      if(playerNum > 5 && playersLocked == 0){
         console.log('Game is locked');
         playersLocked = 1;
         roleAssignment();
@@ -343,6 +344,9 @@ io.on('connection', function(socket){
     console.log(nicknames[socketIndex] + " has left.");
     socketIds.splice(socketIndex, 1);
     playerRole.splice(socketIndex, 1);
+    if (playerRole.length == 0){
+      playerRole = ['god'];
+    }
     nicknames.splice(socketIndex, 1);
   });
 
@@ -420,8 +424,8 @@ function getMaxOfArray(numArray) {
 
 function roleAssignment(){
   console.log("Assigning roles");
-  if(playerNum == 7){
-    playerRole = playerRole.concat(shuffle(['mafia', 'police', 'doctor', 'civilian', 'civilian', 'civilian']));
+  if(playerNum == 6){
+    playerRole = playerRole.concat(shuffle(['mafia', 'police', 'doctor', 'mafia', 'civilian', 'civilian']));
   } else {
     var playing = playerNum - 2;
     var roleArray = ['mafia', 'police', 'civilian', 'civilian'];

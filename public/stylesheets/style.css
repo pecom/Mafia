@@ -38,6 +38,25 @@ form button {
   z-index: 10;
 }
 
+#welcome {
+  position: absolute;
+  margin: 0;
+  top: 50%;
+  left: 50%;
+  z-index: 8;
+  margin-right: -50%;
+  transform: translate(-50%, -50%);
+  -webkit-transition: opacity 1s ease-in-out;
+  -moz-transition: opacity 1s ease-in-out;
+  -o-transition: opacity 1s ease-in-out;
+  transition: opacity 1s ease-in-out;
+}
+
+#welcome:hover {
+  opacity: 0;
+  border: none;
+}
+
 div.divMsg {
   position: fixed;
   max-height: 95%;
