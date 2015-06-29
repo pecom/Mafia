@@ -4,6 +4,7 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
 var playerNum = -1;
+var playerNameNum = 0;
 var playersLocked = 0;
 var nicknames = [];
 var socketIds = [];
@@ -18,6 +19,7 @@ var mafiaMode = false;
 var policeList = [];
 var policeMode = false;
 var dead = [];
+var wasKilled = "";
 var saved = [];
 var doctorMode = false;
 var taunt = 0;
@@ -32,19 +34,21 @@ io.on('connection', function(socket){
   console.log(socket.id);
   if (playersLocked == 0){
     playerNum++;
-    nicknames.push("player"  + playerNum);
+    playerNameNum++;
+    nicknames.push("player"  + playerNameNum);
     socketIds.push(socket.id);
-    if (playerNum == 0){
+    if (socketIds.length == 1){
       io.sockets.connected[socketIds[0]].emit('player enter', 'god');
     }
-    io.emit('disp message', "A player joined the room");
+    sendPM(socket.id, "Your nickname is " + nicknames[socketIds.indexOf(socket.id)] + ". Change it with /setnickname yourNickname");
+    io.sockets.connected[socket.id].emit('send nickname', "player" + playerNameNum);
+    io.emit('disp message', nicknames[socketIds.indexOf(socket.id)] + " has joined the room");
   } else{
-
   }
 
   socket.on('pleb message', function(msg){
     if (debateMode){
-      if (arguments.length == 2){
+      if (arguments.length == 1){
         io.emit('disp message', nicknames[socketIds.indexOf(socket.id)] + ": " + msg);
       } else {
         sendPM(socket.id, "yo you gotta have a message to send...");
@@ -74,39 +78,7 @@ io.on('connection', function(socket){
 
   socket.on('who doctor', function(){
     if (checkRole(socket.id, 'god')){
-      sendPM(socket.id, nicknames[playerRole.indexOf(doctor)]);
-    } else {
-      io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
-    }
-  });
-
-  socket.on('accused list', function(){
-    sendPM(socket.id, accused.join(', '));
-  });
-
-  socket.on('vote target', function(prynne){
-    if (votingMode){
-      if (arguments.length == 2){
-        var hesterId = socketIds.indexOf(socket.id);
-        var votedNick = nicknames[hesterId];
-        var accusedIndex = accused.indexOf(prynne);
-        if(voted.indexOf(votedNick) == -1){
-          if(accusedIndex != -1){
-            io.emit('vote message', votedNick + " votes " + prynne + "!");
-            votes[accusedIndex] += 1;
-            voted.push(votedNick);
-            if(voted.length == playerNum){
-              heresJohnny();
-            }
-          } else {
-            sendPM(socket.id, "Not a valid person to vote. Check /accusedlist");
-          }
-        } else {
-          sendPM(socket.id, "you already voted!")
-        }
-      } else {
-        sendPM(socket.id, "yo you gotta accuse someone, not no one");
-      }
+      sendPM(socket.id, "Doctor is: " + nicknames[playerRole.indexOf('doctor')]);
     } else {
       io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
     }
@@ -125,11 +97,15 @@ io.on('connection', function(socket){
     if (socketIds.indexOf(socket.id) > -1){
       if (arguments.length == 1){
         if(checkName(nick)){
-          var socketIndex = socketIds.indexOf(socket.id);
-          io.emit('disp message', nicknames[socketIndex] + " now goes by: " + nick);
-          nicknames[socketIndex] = nick;
-          console.log(socket.id + "set their nickname to: " + nick);
-          io.sockets.connected[socket.id].emit('send nickname', nick);
+          if (nick.substr(0, 5) != "player" && nick != "god" && nick != "undefined"){
+            var socketIndex = socketIds.indexOf(socket.id);
+            io.emit('disp message', nicknames[socketIndex] + " now goes by: " + nick);
+            nicknames[socketIndex] = nick;
+            console.log(socket.id + "set their nickname to: " + nick);
+            io.sockets.connected[socket.id].emit('send nickname', nick);
+          } else {
+            sendPM(socket.id, "sorry, that nickname (or part of it) is not allowed");
+          }
         } else {
           sendPM(socket.id, "sorry, that name is already taken");
         }
@@ -175,6 +151,7 @@ io.on('connection', function(socket){
         playersLocked = 1;
         roleAssignment();
         sendPM(socket.id, "the game is locked");
+        io.emit('disp message', "The game is locked!");
         io.emit('game locked');
       } else {
         sendPM(socket.id, "Not enough players or the game has already been locked");
@@ -186,7 +163,7 @@ io.on('connection', function(socket){
 
   socket.on('game start', function(){
     if(checkRole(socket.id, 'god')){
-      if(playerLocked == 1){
+      if(playersLocked == 1){
         console.log('Game is starting...');
         sendPM(socket.id, "Game is starting...");
         accused = [];
@@ -201,6 +178,30 @@ io.on('connection', function(socket){
         startGame();
       } else {
         sendPM(socket.id, "Gotta lock the players first");
+      }
+    } else {
+      io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
+    }
+  });
+
+  socket.on('doctor dead', function(){
+    if (checkRole(socket.id, 'god')){
+      if (doctorMode){
+        doctorDone();
+      } else {
+        sendPM(socket.id, "Not the doctor's turn");
+      }
+    } else {
+      io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
+    }
+  });
+
+  socket.on('police dead', function(){
+    if (checkRole(socket.id, 'god')){
+      if (policeMode){
+        policeDone();
+      } else {
+        sendPM(socket.id, "Not the popo's turn");
       }
     } else {
       io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
@@ -242,8 +243,10 @@ io.on('connection', function(socket){
             sendPM(socketIds[mafiaList[i]], target + " has been marked for deletion. Good work.");
           }
           if (saved.indexOf(target) == -1){
-            killed(target);
+            wasKilled = "";
+            wasKilled += target;
           } else {
+            wasKilled = "";
             sendPM(socketIds[0], target + " has been saved! Be sure to include it in your story :D");
             saved = [];
           }
@@ -278,14 +281,15 @@ io.on('connection', function(socket){
       if (checkRole(socket.id, 'police')){
         if (target != nicknames[0]){
           targetIndex = nicknames.indexOf(target);
+          if (checkName)
           if (mafiaList.indexOf(targetIndex) > -1){
             for (i = 0; i < policeList.length; i++) {
-              sendPM(socketIds[police[i]], target + " is a member of the mafia. Good work.");
+              sendPM(socketIds[policeList[i]], target + " is a member of the mafia. Good work.");
               sendPM(socketIds[0], "The police have identified a member of a mafia. Do NOT mention this in the story");
             }
           } else {
             for (i = 0; i < policeList.length; i++) {
-              sendPM(socketIds[police[i]], target + " is NOT a member of the mafia. Guess better.");
+              sendPM(socketIds[policeList[i]], target + " is NOT a member of the mafia. Guess better.");
             }
           }
           policeDone();
@@ -303,29 +307,74 @@ io.on('connection', function(socket){
   //Doctor Command
   socket.on('doctor heal', function(patient){
     if (doctorMode == true){
-      if (checkRole(socket.id, 'doctor')){
-        if (target != nicknames[0]){
-          saved.push(target);
-          sendPM(socket.id, target + " is safe tonight.");
-          doctorDone();
+      if (!checkName(patient)){
+        if (checkRole(socket.id, 'doctor')){
+          if (patient != nicknames[0]){
+            saved.push(patient);
+            sendPM(socket.id, patient + " is safe tonight.");
+            doctorDone();
+          } else {
+            sendPM(socket.id, "I assure you, god will not be harmed by the mafia this turn XD")
+          }
         } else {
-          sendPM(socket.id, "I assure you, god will not be harmed by the mafia this turn XD")
+          io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
         }
       } else {
-        io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
+        sendPM(socket.id, "Invalid patient");
       }
     } else {
       sendPM(socket.id, "Not /doctormode yet. Can't use this command.")
     }
   });
 
-  //Accused
+  //Accusing and Voting
+  socket.on('accused list', function(){
+    sendPM(socket.id, accused.join(', '));
+  });
+
+  socket.on('vote target', function(prynne){
+    if (votingMode){
+      if (arguments.length == 1){
+        var hesterId = socketIds.indexOf(socket.id);
+        var votedNick = nicknames[hesterId];
+        var accusedIndex = accused.indexOf(prynne);
+        if(voted.indexOf(votedNick) == -1){
+          if(accusedIndex != -1){
+            io.emit('vote message', votedNick + " votes " + prynne + "!");
+            votes[accusedIndex] += 1;
+            voted.push(votedNick);
+            if(voted.length == playerNum){
+              heresJohnny();
+            }
+          } else {
+            sendPM(socket.id, "Not a valid person to vote for. Check /accusedlist");
+          }
+        } else {
+          sendPM(socket.id, "you already voted!")
+        }
+      } else {
+        sendPM(socket.id, "yo you gotta vote for someone, not no one");
+      }
+    } else {
+      io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
+    }
+  });
+
   socket.on('accused', function(hester){
     if (debateMode){
-      accuseMsg = '';
-      accuseMsg += nicknames[socketIds.indexOf(socket.id)] + " accuses " + hester + "!";
-      accused.push(hester);
-      io.emit('accuse message', accuseMsg);
+      if (!checkName(hester)){
+        accuseMsg = '';
+        accuseMsg += nicknames[socketIds.indexOf(socket.id)] + " accuses " + hester + "!";
+        if (accused.indexOf(hester) == -1){
+          accused.push(hester);
+          votes.push(0);
+          io.emit('accuse message', accuseMsg);
+        } else {
+          sendPM(socket.id, "Already accused...");
+        }
+      } else {
+        sendPM(socket.id, "Nickname not found... Check /players and your spelling");
+      }
     } else {
       io.emit('disp message', "Either I goofed, or " + nicknames[socketIds.indexOf(socket.id)] + " is hacking and isn't cool.");
     }
@@ -334,20 +383,26 @@ io.on('connection', function(socket){
   //Baibai
   socket.on('disconnect', function(){
     var socketIndex = socketIds.indexOf(socket.id);
+    console.log(nicknames[socketIndex] + " has left.");
     if (playersLocked == 0){
       playerNum--;
-      io.emit('player leave', playerRole[playerNum]);
+      socketIds.splice(socketIndex, 1);
+      playerRole.splice(socketIndex, 1);
+      nicknames.splice(socketIndex, 1);
     } else if(socketIndex == -1){
+      playerNum--;
     } else {
       io.emit('disp message', nicknames[socketIndex] + " has left. FLAME THAT PERSON");
+      socketIds.splice(socketIndex, 1);
+      playerRole.splice(socketIndex, 1);
+      nicknames.splice(socketIndex, 1);
     }
-    console.log(nicknames[socketIndex] + " has left.");
-    socketIds.splice(socketIndex, 1);
-    playerRole.splice(socketIndex, 1);
     if (playerRole.length == 0){
       playerRole = ['god'];
     }
-    nicknames.splice(socketIndex, 1);
+    if (socketIds.length != 0){
+      io.sockets.connected[socketIds[0]].emit('player enter', 'god');
+    }
   });
 
 });
@@ -396,18 +451,20 @@ function killed(target){
   dead.push(nicknames[targetIndex]);
   sendPM(socketIds[targetIndex], "You died :( RIP. You can stay and watch the rest of the game as a bystander, but no PMing.");
   io.sockets.connected[socketIds[targetIndex]].emit('is dead');
+  io.emit('disp message', target + " was found dead.");
   console.log(target + " died.")
   socketIds.splice(targetIndex, 1);
   playerRole.splice(targetIndex, 1);
   nicknames.splice(targetIndex, 1);
-  votingMode = false;
-  io.emit('toggle vote', votingMode);
-  accused = [];
-  votes = [];
-  voted = [];
-  saved = [];
-  debateMode = false;
-  votingMode = false;
+  mafiaList = [];
+  policeList = [];
+  for (i = 0; i < playerRole.length; i++){
+    if (playerRole[i] == 'mafia') {
+      mafiaList.push(i);
+    } else if (playerRole[i] == 'police'){
+      policeList.push(i);
+    }
+  }
 }
 
 function heresJohnny(){
@@ -416,6 +473,20 @@ function heresJohnny(){
   io.emit('disp message', accused[deadIndex] + " has been killed.")
   killed(accused[deadIndex]);
   sendPM(socketIds[0], "The round is over! Use /start to start the next round");
+  votingMode = false;
+  debateMode = false;
+  io.emit('toggle debate', debateMode);
+  io.emit('toggle vote', votingMode);
+  accused = [];
+  votes = [];
+  voted = [];
+  saved = [];
+  var nonGod = playerRole.length - 1;
+  if (mafiaList.length == 0){
+    io.emit('you won');
+  } else if (nonGod == mafiaList.length) {
+    io.emit('mafia won');
+  }
 }
 
 function getMaxOfArray(numArray) {
@@ -426,6 +497,14 @@ function roleAssignment(){
   console.log("Assigning roles");
   if(playerNum == 6){
     playerRole = playerRole.concat(shuffle(['mafia', 'police', 'doctor', 'mafia', 'civilian', 'civilian']));
+    for (i = 1; i < playerRole.length; i++){
+      if (playerRole[i] == 'mafia') {
+        mafiaList.push(i);
+      } else if (playerRole[i] == 'police'){
+        policeList.push(i);
+      }
+      io.sockets.connected[socketIds[i]].emit('player enter', playerRole[i]);
+    }
   } else {
     var playing = playerNum - 2;
     var roleArray = ['mafia', 'police', 'civilian', 'civilian'];
@@ -438,6 +517,7 @@ function roleAssignment(){
     baseArray.push('doctor');
     var randomizedList = shuffle(baseArray);
     var rolesList = randomizedList;
+    playerRole = playerRole.concat(rolesList);
     for (i = 1; i < playerRole.length; i++){
       if (playerRole[i] == 'mafia') {
         mafiaList.push(i);
@@ -446,7 +526,6 @@ function roleAssignment(){
       }
       io.sockets.connected[socketIds[i]].emit('player enter', [playerRole[i]]);
     }
-    playerRole = playerRole.concat(rolesList);
   }
 }
 
@@ -462,7 +541,11 @@ function startGame(){
   doctorMode = true;
   console.log('Doctor mode is set');
   doctorIndex = playerRole.indexOf('doctor');
-  sendPM(socketIds[doctorIndex], "It's time to heal! Use /doctorheal theirNickname to heal someone");
+  if (doctorIndex > -1) {
+    sendPM(socketIds[doctorIndex], "It's time to heal! Use /doctorheal theirNickname to heal someone");
+  } else {
+    sendPM(socketIds[0], "The Doctor is dead so use /doctordone to move on to the next part. Wait a bit so it seems realistic.");
+  }
   io.emit('disp message', "A doctor is wandering about...");
 }
 
@@ -474,6 +557,7 @@ function doctorDone(){
   for (i = 0; i < mafiaList.length; i++){
     sendPM(socketIds[mafiaList[i]], "It's time to kill! Use /mafiakill theirNickname to target someone for extermination");
   }
+
   io.emit('disp message', "The night comes and the mafia will strike! Sleep in fear...");
 }
 
@@ -482,15 +566,24 @@ function mafiaDone(){
   console.log('Mafia mode is off');
   policeMode = true;
   console.log('Police mode is set');
-  for (i = 0; i < policeList.length; i++){
-    sendPM(socketIds[policeList[i]], "It's time to investigate! Use /policeaccuse theirNickname to investigate someone");
+  if (policeList.length == 0){
+    sendPM(socketIds[0], "The po-po are all dead so use /policedone to move on to the next part. Wait a bit so it seems realistic.");
+  } else {
+    for (i = 0; i < policeList.length; i++){
+      sendPM(socketIds[policeList[i]], "It's time to investigate! Use /policeaccuse theirNickname to investigate someone");
+    }
   }
+
   io.emit('disp message', "The police are out investigating... can they save us?");
 }
 
 function policeDone(){
   policeMode = false;
   console.log('Police mode is off');
+  if (wasKilled != ""){
+    killed(wasKilled);
+    wasKilled == "";
+  }
   debateMode = true;
   console.log('Debate mode is on');
   io.emit('toggle debate', debateMode);

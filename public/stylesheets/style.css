@@ -63,14 +63,16 @@ div.divMsg {
   width: 100%;
   overflow: scroll;
   overflow-x: hidden;
-  z-index: 5;
 }
 
 div.divMsg p{
   padding: 1em;
   margin: 1em;
   background: #eee;
+  overflow: auto;
   border: 1px solid #A7A7A7;
+  border-radius: 1em;
+  font-family: Tahoma,Verdana, Segoe ,sans-serif;
 }
 
 div.divMsg p.priv {
@@ -80,17 +82,29 @@ div.divMsg p.priv {
 div.divMsg p.joke{
   background: #00CC00;
   color: #9933FF;
+  overflow: auto;
   border: 3px groove #00CCFF;
 }
 
 div.divMsg p.accuse {
-  font-style: bold;
+  font-weight: bold;
   background: #FFFF00;
+  overflow: auto;
   color: red;
 }
 
 div.divMsg p.vote {
   font-style: bold;
-  background: #CC6600;
-  color: #0033CC;
+  background: red;
+  overflow: auto;
+  color: #FFFF00;
+}
+
+#finalScreen {
+  position: fixed;
+  bottom: 50%;
+  left: 50%;
+  margin-right: -50%;
+  transform: translate(-50%, -50%);
+  font-size: 350%;
 }

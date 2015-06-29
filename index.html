@@ -1,21 +1,29 @@
 <!doctype html>
 <html>
-  <!-- Shoutout to Eric Xin for all the rad suggestions -->
+  <!-- Shoutout to Eric Xin for all the rad suggestions and code snippets to make this program better-->
+  <!--
+  * You may use this code for free on any web page provided that
+  * these comment lines and the following credit remain in the code.
+  * Cross Browser Fireworks © http://www.javascript-fx.com
+  -->
   <head>
     <title>Mafia! Boom Headshot</title>
     <link href="/stylesheets/style.css" rel="stylesheet" type="text/css">
     <link rel="icon" type="image/png" href="/stylesheets/favicon-16x16.png" sizes="16x16" />
   </head>
   <body>
-    <input type = "image" id = "welcome" src = "/stylesheets/lolgo.png" onClick = "fadeAway()" />
+    <input type = "image" id = "welcome" src = "/stylesheets/lolgo.png" onClick = "" />
     <p id='role'> 8675309 - Your number. Game isn't locked yet </p>
     <div class = 'divMsg' id = 'msgDiv'>
       <p> Welcome to Mafia... </p>
       <p> Type /help to view a list of commands. Message Prakruth on Facebook if you need some help.
     </div>
     <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
+      <input id="m" autocomplete="off" placeholder="chat and use commands here!" maxlength=150 /><button>Send</button>
     </form>
+    <script type="text/javascript" src="/demo1/JSFX_Fireworks3/javascript/JSFX_Layer.js"></script>
+    <script type="text/javascript" src="/demo1/JSFX_Fireworks3/javascript/JSFX_Browser.js"></script>
+    <script type="text/javascript" src="/demo1/JSFX_Fireworks3/javascript/JSFX_Fireworks3.js"></script>
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
     <script>
@@ -38,6 +46,11 @@
         updateStat = 1;
       }
     }
+
+    function ericXin(text){
+
+    }
+
     $('#welcome').click(function(){
       $('#welcome').animate({height: 0, opacity: 0}, function() {
         $(this).remove();
@@ -55,6 +68,7 @@
         $('#m').children('input').val('')
         $('.divMsg').append($('<p>').text("Lol you're dead...."));
         $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+        return false;
       }
       //Checks if message is a /...
       if (msg.charAt(0) == "/"){
@@ -63,7 +77,7 @@
         if (arrayMsg[0] == "help"){
           $('.divMsg').append($('<p>').text("Here are the commands you can use: /help | /help+ | /setnickname nickname | /nickname | /players | /whoisgod | /pm theirNickname yourMessage | /clear | /accuse theirNickname | /vote theirNickname | /accusedlist"));
           if (playRole == 'god'){
-            $('.divMsg').append($('<p>').text("As god, you can also use: /lock | /mafiafriends | /policefriends | /doctor | /voting."));
+            $('.divMsg').append($('<p>').text("As god, you can also use: /lock | /start | /voting | /mafiafriends | /policefriends | /doctor . There are some other commands but they will be shown to you if the situation arises."));
           } else if (playRole == 'mafia'){
             $('.divMsg').append($('<p>').text("As a member of the mafia, you can also use: /mafiafriends and /mafiakill theirNickname. /mafiakill can only be used once per turn by the mafia, so /pm each other and come to a conclusion of who to kill."));
           } else if (playRole == 'police'){
@@ -76,7 +90,7 @@
           $('.divMsg').append($('<p>').text("Set nickname - /setnickname desiredNickname | Display current nickname - /nickname | Display nicknames of all players - /players | Nickname of god - /whoisgod | Private message - /pm theirNickname yourMessage | Clear the chat screen - /clear | Accuse someone during debate mode - /accuse theirNickname | Vote to kick people off the island - /vote theirNickname | View the list of accused people - /accusedlist"));
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
           if (playRole == 'god'){
-            $('.divMsg').append($('<p>').text("Locks players and starts game - /lock | List of mafia members - /mafiafriends | List of police members - /policefriends | Who is the doctor? - /doctor | Allow voting to BURN THE _ITCH (w or b your choice) - /voting."));
+            $('.divMsg').append($('<p>').text("Locks players and assigns roles - /lock | Starts the game - /start | Allow voting to BURN THE _ITCH (w or b your choice) - /voting | List of mafia members - /mafiafriends | List of police members - /policefriends | Who is the doctor? - /doctor."));
           } else if (playRole == 'mafia'){
             $('.divMsg').append($('<p>').text("List of mafia members - /mafiafriends | Target someone for extermination - /mafiakill theirNickname. /mafiakill can only be used once per turn by the mafia, so /pm each other and come to a conclusion of who to kill."));
           } else if (playRole == 'police'){
@@ -108,6 +122,7 @@
           $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
         } else if (arrayMsg[0] == "clear"){
           $('.divMsg').empty();
+          $('.divMsg').append($('<p>').text("Cleared."));
         } else if (arrayMsg[0] == "players"){
           socket.emit('player nicks');
         } else if (arrayMsg[0] == "whoisgod"){
@@ -147,6 +162,20 @@
         } else if (arrayMsg[0] == "doctor"){
           if (playRole == 'god'){
             socket.emit('who doctor');
+          } else {
+            $('.divMsg').append($('<p>').text("lol you can't use this command!"));
+            $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+          }
+        } else if (arrayMsg[0] == "doctordone"){
+          if (playRole == 'god'){
+            socket.emit('doctor dead');
+          } else {
+            $('.divMsg').append($('<p>').text("lol you can't use this command!"));
+            $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
+          }
+        } else if (arrayMsg[0] == "policedone"){
+          if (playRole == 'god'){
+            socket.emit('police dead');
           } else {
             $('.divMsg').append($('<p>').text("lol you can't use this command!"));
             $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
@@ -203,10 +232,10 @@
           }
         } else if (arrayMsg[0] == "accuse"){
           if (debate){
-            if (arrayMsg.length == 2){
-              socket.emit('accuse', arrayMsg[1]);
+            if (arrayMsg.length == 2 && playRole != 'god'){
+              socket.emit('accused', arrayMsg[1]);
             } else {
-              $('.divMsg').append($('<p>').text("Format is: /accuse theirNickname. Don't add other crap"));
+              $('.divMsg').append($('<p>').text("Format is: /accuse theirNickname. Don't add other crap. Or god isn't supposed to participate."));
               $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
             }
           } else {
@@ -215,10 +244,10 @@
           }
         } else if (arrayMsg[0] == "vote"){
           if (voting){
-            if (arrayMsg.length == 2){
+            if (arrayMsg.length == 2 && playRole != 'god'){
               socket.emit('vote target', arrayMsg[1]);
             } else {
-              $('.divMsg').append($('<p>').text("Format is: /vote theirNickname. Don't add other crap"));
+              $('.divMsg').append($('<p>').text("Format is: /vote theirNickname. Don't add other crap. Or god isn't supposed to participate."));
               $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
             }
           } else {
@@ -296,6 +325,7 @@
         } else {
         }
       }
+      $('#msgDiv').scrollTop($('#msgDiv').prop("scrollHeight"));
       $('#m').val('');
       return false;
     });
@@ -346,7 +376,9 @@
     });
 
     socket.on('is dead', function(){
+      $('body').append("<div id='finalScreen'></div>");
       dead = 1;
+      $('#finalScreen').append("You died :|");
     });
 
     socket.on('game locked', function(){
@@ -361,10 +393,29 @@
       voting = toggledVote;
     });
 
-    function fadeAway(){
-      welcome.style.opacity = 0;
-      welcome.style.display = "none";
-    }
+    socket.on('mafia won', function(){
+      $('body').append("<div id='finalScreen'></div>");
+      if (playRole == "mafia"){
+        JSFX.Fire(40, 100, 100);
+        setTimeout("JSFX.Fire(40, 100, 100)", 1000);
+        $('#finalScreen').append("You won! :D YAY.");
+      } else {
+        $('#finalScreen').append("You died :( RIP.");
+      }
+    });
+
+    });
+
+    socket.on('you won', function(){
+      $('body').append("<div id='finalScreen'></div>");
+      if (playRole != "mafia"){
+        JSFX.Fire(40, 100, 100);
+        setTimeout("JSFX.Fire(40, 100, 100)", 1000);
+        $('#finalScreen').append("You won! :D YAY.");
+      } else {
+        $('#finalScreen').append("You lose :( RIP.");
+      }
+    });
 
     </script>
   </body>
